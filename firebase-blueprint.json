@@ -1,0 +1,92 @@
+{
+  "entities": {
+    "ReceiptTemplate": {
+      "title": "ReceiptTemplate",
+      "description": "User-authored thermal receipt template with business branding, line items, and paper width configuration.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "name": { "type": "string", "description": "Template display name." },
+        "businessName": { "type": "string", "description": "Business name printed at the top of the receipt." },
+        "businessSubtitle": { "type": "string", "description": "Optional business address or phone line." },
+        "headerNote": { "type": "string", "description": "Optional header note or tax ID." },
+        "footerNote": { "type": "string", "description": "Footer message printed at the bottom of the receipt." },
+        "paperWidthMm": { "type": "integer", "description": "Target thermal paper width in millimeters (58 or 80)." },
+        "currencySymbol": { "type": "string", "description": "Currency symbol prefix for prices." },
+        "showDate": { "type": "boolean", "description": "Whether to include the print date/time on the receipt." },
+        "showLogoHeader": { "type": "boolean", "description": "Whether to include a stylized banner header." },
+        "defaultItems": { "type": "array", "description": "Default preset line items ({name, quantity, unitPriceCents})." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp when created (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp when updated (FieldValue.serverTimestamp())." }
+      },
+      "required": [
+        "userId",
+        "name",
+        "businessName",
+        "businessSubtitle",
+        "headerNote",
+        "footerNote",
+        "paperWidthMm",
+        "currencySymbol",
+        "showDate",
+        "showLogoHeader",
+        "defaultItems",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PrintOrder": {
+      "title": "PrintOrder",
+      "description": "Printed or queued thermal print job (receipt, text, or image) recorded in order history.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "orderNumber": { "type": "string", "description": "Human-readable order identifier." },
+        "orderType": { "type": "string", "enum": ["receipt", "text", "image"], "description": "Type of thermal print job." },
+        "title": { "type": "string", "description": "Summary title for order history." },
+        "businessName": { "type": "string", "description": "Business name printed on receipt." },
+        "businessSubtitle": { "type": "string", "description": "Subtitle printed on receipt." },
+        "footerNote": { "type": "string", "description": "Footer note printed on receipt." },
+        "textContent": { "type": "string", "description": "Body text for text print jobs or notes." },
+        "items": { "type": "array", "description": "Line items ({name, quantity, unitPriceCents})." },
+        "totalCents": { "type": "integer", "description": "Total amount in minor currency units (cents)." },
+        "currencySymbol": { "type": "string", "description": "Currency symbol used." },
+        "paperWidthMm": { "type": "integer", "description": "Thermal paper width in mm (58 or 80)." },
+        "printerName": { "type": "string", "description": "Target Bluetooth printer display name." },
+        "printerAddress": { "type": "string", "description": "Target Bluetooth printer MAC address." },
+        "status": { "type": "string", "enum": ["queued", "printed", "failed"], "description": "Print job status." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp when created (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp when updated (FieldValue.serverTimestamp())." }
+      },
+      "required": [
+        "userId",
+        "orderNumber",
+        "orderType",
+        "title",
+        "businessName",
+        "businessSubtitle",
+        "footerNote",
+        "textContent",
+        "items",
+        "totalCents",
+        "currencySymbol",
+        "paperWidthMm",
+        "printerName",
+        "printerAddress",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/templates/{templateId}": {
+      "schema": { "$ref": "#/entities/ReceiptTemplate" },
+      "description": "User-scoped receipt templates."
+    },
+    "/users/{userId}/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/PrintOrder" },
+      "description": "User-scoped print orders and printing history."
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Bluetooth Print",
+  "description": "Mobile Android Bluetooth thermal printer app supporting 58mm and 80mm ESC/POS printers, receipt templates, order history, text, and image printing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

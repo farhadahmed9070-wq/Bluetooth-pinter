@@ -1,0 +1,151 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidLineItemList(items, maxSize) {
+      return items is list &&
+             items.size() <= maxSize &&
+             (items.size() == 0 || (
+               items[0] is map &&
+               items[0].keys().hasOnly(['name', 'quantity', 'unitPriceCents']) &&
+               items[0].name is string && items[0].name.size() >= 1 && items[0].name.size() <= 60 &&
+               items[0].quantity is int && items[0].quantity >= 1 && items[0].quantity <= 9999 &&
+               items[0].unitPriceCents is int && items[0].unitPriceCents >= 0 && items[0].unitPriceCents <= 100000000
+             ));
+    }
+
+    function isValidTemplate(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 60 &&
+             data.businessName is string && data.businessName.size() >= 1 && data.businessName.size() <= 80 &&
+             data.businessSubtitle is string && data.businessSubtitle.size() <= 120 &&
+             data.headerNote is string && data.headerNote.size() <= 200 &&
+             data.footerNote is string && data.footerNote.size() <= 200 &&
+             data.paperWidthMm is int && (data.paperWidthMm == 58 || data.paperWidthMm == 80) &&
+             data.currencySymbol is string && data.currencySymbol.size() >= 1 && data.currencySymbol.size() <= 5 &&
+             data.showDate is bool &&
+             data.showLogoHeader is bool &&
+             isValidLineItemList(data.defaultItems, 25) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidOrder(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.orderNumber is string && data.orderNumber.size() >= 1 && data.orderNumber.size() <= 30 &&
+             data.orderType is string && data.orderType in ['receipt', 'text', 'image'] &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 80 &&
+             data.businessName is string && data.businessName.size() <= 80 &&
+             data.businessSubtitle is string && data.businessSubtitle.size() <= 120 &&
+             data.footerNote is string && data.footerNote.size() <= 200 &&
+             data.textContent is string && data.textContent.size() <= 2000 &&
+             isValidLineItemList(data.items, 50) &&
+             data.totalCents is int && data.totalCents >= 0 && data.totalCents <= 1000000000 &&
+             data.currencySymbol is string && data.currencySymbol.size() >= 1 && data.currencySymbol.size() <= 5 &&
+             data.paperWidthMm is int && (data.paperWidthMm == 58 || data.paperWidthMm == 80) &&
+             data.printerName is string && data.printerName.size() <= 80 &&
+             data.printerAddress is string && data.printerAddress.size() <= 32 &&
+             data.status is string && data.status in ['queued', 'printed', 'failed'] &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    match /users/{userId}/templates/{templateId} {
+      allow list: if isOwner(userId);
+      allow get: if isOwner(userId) && isValidId(templateId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(templateId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'name', 'businessName', 'businessSubtitle',
+                         'headerNote', 'footerNote', 'paperWidthMm', 'currencySymbol',
+                         'showDate', 'showLogoHeader', 'defaultItems', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'name', 'businessName', 'businessSubtitle',
+                         'headerNote', 'footerNote', 'paperWidthMm', 'currencySymbol',
+                         'showDate', 'showLogoHeader', 'defaultItems', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidTemplate(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(templateId) &&
+                       isValidTemplate(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'name', 'businessName', 'businessSubtitle',
+                         'headerNote', 'footerNote', 'paperWidthMm', 'currencySymbol',
+                         'showDate', 'showLogoHeader', 'defaultItems', 'updatedAt'
+                       ]);
+
+      allow delete: if isOwner(userId) && isValidId(templateId);
+    }
+
+    match /users/{userId}/orders/{orderId} {
+      allow list: if isOwner(userId);
+      allow get: if isOwner(userId) && isValidId(orderId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(orderId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'orderNumber', 'orderType', 'title',
+                         'businessName', 'businessSubtitle', 'footerNote', 'textContent',
+                         'items', 'totalCents', 'currencySymbol', 'paperWidthMm',
+                         'printerName', 'printerAddress', 'status', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'orderNumber', 'orderType', 'title',
+                         'businessName', 'businessSubtitle', 'footerNote', 'textContent',
+                         'items', 'totalCents', 'currencySymbol', 'paperWidthMm',
+                         'printerName', 'printerAddress', 'status', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidOrder(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(orderId) &&
+                       isValidOrder(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         // Action 1: Transition queued or failed order after print attempt
+                         (existing().status in ['queued', 'failed'] &&
+                          incoming().diff(existing()).affectedKeys().hasOnly([
+                            'status', 'printerName', 'printerAddress', 'updatedAt'
+                          ])) ||
+                         // Action 2: Reprint an already-printed order (terminal status stays 'printed')
+                         (existing().status == 'printed' &&
+                          incoming().status == 'printed' &&
+                          incoming().diff(existing()).affectedKeys().hasOnly([
+                            'printerName', 'printerAddress', 'updatedAt'
+                          ]))
+                       );
+
+      allow delete: if isOwner(userId) && isValidId(orderId);
+    }
+  }
+}
